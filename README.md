@@ -1,29 +1,144 @@
-# Bulk_User_Creation_AzureAD
-Bulk_User_Creation_AzureAD
+# Bulk User Creation & Licensing Automation (PowerShell)
 
-# bulk_User_Creation_Final.ps1
+This repository contains a PowerShell 7 automation script named `bulk_User_Creation_Final.ps1` used for bulk provisioning of Microsoft 365 (Entra ID) users.  
+It performs user creation, license assignment (E1/E3 + Teams), usage location updates, archive mailbox enablement, auto-expanding archive enablement, and exports detailed reports/logs.
 
-PowerShell 7 script to:
+This README includes **all information in one place**:  
+script purpose, usage instructions, CSV structure, and the full sample CSV.
 
-- Bulk create users in Microsoft Entra ID (Azure AD) from a CSV file  
-- Assign Microsoft 365 **E1/E3** licenses plus **Teams** license  
-- Optionally enable **archive mailbox** and **auto-expanding archive**  
-- Export summary and skipped-user reports with a log file
 
-> ⚠️ This script is intended for admins. Do **not** commit real passwords or production CSVs to GitHub.
+## What This Script Does (Full Summary)
+
+The script automates the entire Microsoft 365 user onboarding process:
+
+1. **Reads a CSV file** containing user details.  
+2. **Connects to Microsoft Graph** using device code login.  
+3. **Connects to Exchange Online** using interactive login.  
+4. **Auto-detects license SKUs** in the tenant using `Get-MgSubscribedSku`.  
+5. **Checks if each user already exists**.  
+   - If yes → skips creation.  
+   - If no → creates user with:
+     - Display Name  
+     - UPN  
+     - Department  
+     - Job Title  
+     - Initial Password  
+     - Force Password Change  
+     - MailNickname  
+6. **Sets Usage Location** to `"SG"`.  
+7. **Assigns licenses** depending on CSV column `License`:
+   - If `E3` → assigns **E3 + Teams license**
+   - If `E1` → assigns **E1 + Teams license**
+8. **If Archive = Yes**, the script:
+   - Waits for mailbox provisioning (up to 8 minutes)
+   - Enables Archive Mailbox
+   - Waits 2 minutes
+   - Enables Auto-Expanding Archive
+9. **Generates**:
+   - A main report CSV  
+   - A skipped-user report (if any)  
+   - A detailed log file  
+10. All outputs are created automatically inside the `Output/` folder.
+
+This makes the script ready for tenant migrations, bulk onboarding, and environment setup.
 
 ---
 
-## Prerequisites
+## Requirements (Modules, PowerShell, and Permissions)
 
-- **PowerShell 7+**
-- Modules:
-  - [`Microsoft.Graph`](https://learn.microsoft.com/graph/powershell/installation) (v2+)
-  - [`ExchangeOnlineManagement`](https://learn.microsoft.com/powershell/exchange/connect-to-exchange-online-powershell)
+To run the script successfully:
 
+### PowerShell Version
+- **PowerShell 7+** (required)
+
+### Required Modules
 Install:
 
 ```powershell
 Install-Module Microsoft.Graph -Scope CurrentUser
 Install-Module ExchangeOnlineManagement -Scope CurrentUser
+
+
+
+This script expects a CSV with exact header names:
+
+Column Name	Required	Description
+Source Users UPN	No	Optional reference (from source tenant or HR)
+Target_UPN	Yes	New user UPN (e.g., user1@contoso.com
+)
+Display name	Yes	User display name
+Job title	No	Job title
+Department	No	Department
+Password	Yes	Initial password
+License	Yes	Use E1 or E3
+Archive	Yes	Yes to enable archive + auto-expanding
+
+FULL SAMPLE CSV
+
+Source Users UPN,Target_UPN,Display name,Job title,Department,Password,License,Archive
+userA@oldtenant.com,userA@contoso.com,"Alex Morgan","Finance Analyst","Finance","P@ssw0rd!123","E3","Yes"
+userB@oldtenant.com,userB@contoso.com,"Brenda Lee","IT Support Engineer","IT","P@ssw0rd!123","E1","No"
+userC@oldtenant.com,userC@contoso.com,"Charles Tan","HR Manager","HR","P@ssw0rd!123","E3","Yes"
+userD@oldtenant.com,userD@contoso.com,"Diana Chen","Marketing Specialist","Marketing","P@ssw0rd!123","E1","No"
+userE@oldtenant.com,userE@contoso.com,"Ethan Khoo","Operations Supervisor","Operations","P@ssw0rd!123","E3","Yes"
+userF@oldtenant.com,userF@contoso.com,"Farah Ibrahim","Procurement Officer","Procurement","P@ssw0rd!123","E1","Yes"
+userG@oldtenant.com,userG@contoso.com,"Gavin Patel","Store Manager","Retail","P@ssw0rd!123","E3","No"
+userH@oldtenant.com,userH@contoso.com,"Hannah Wong","Safety Coordinator","Safety","P@ssw0rd!123","E1","Yes"
+userI@oldtenant.com,userI@contoso.com,"Ivan Lim","Warehouse Associate","Warehouse","P@ssw0rd!123","E3","No"
+userJ@oldtenant.com,userJ@contoso.com,"Janet Foo","Business Analyst","Business","P@ssw0rd!123","E1","Yes"
+
+
+Ensure your CSV file is named:
+
+bulk_User_creation_file.csv
+
+
+Ensure it is placed in the same folder as the script:
+
+bulk_User_Creation_Final.ps1
+bulk_User_creation_file.csv
+
+
+Open PowerShell 7:
+
+pwsh
+
+Run the script:
+
+.\bulk_User_Creation_Final.ps1
+
+
+Sign in when prompted:
+
+Microsoft Graph (device code login)
+
+Exchange Online (interactive login)
+
+After execution, check the Output folder for:
+
+User_License_Report_*.csv
+
+User_Skipped_*.csv
+
+UserCreationLog_*.log
+
+
+Output Files Generated
+
+Inside Output/ the script creates:
+
+User_License_Report_<timestamp>.csv
+→ Shows user, license, archive status, creation state
+
+User_Skipped_<timestamp>.csv
+→ Lists users skipped due to insufficient licenses or missing data
+
+UserCreationLog_<timestamp>.log
+→ Full execution log with timestamps
+
+Everything is autogenerated — no manual folders needed.
+
+
+
+
 
